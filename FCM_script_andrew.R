@@ -2,141 +2,125 @@
 # Andrew Black
 # Last updated 08-18-2021
 
-# Adapted from
-	# http://rprops.github.io/PhenoFlow/
 
-# Step 1: Install R tools, here is tutorial:
-	# https://cran.rstudio.com/bin/windows/Rtools/
+# Watch this YouTube video to see what we are about to do:
+	# https://www.youtube.com/watch?v=2INqQNMNaV0
 
-	# After installation is complete, you need to perform one more step to be able to compile R packages: you need to put the location of the Rtools make utilities (bash, make, etc) on the PATH.
-	writeLines('PATH="${RTOOLS40_HOME}\\usr\\bin;${PATH}"', con = "~/.Renviron")
-	# Now restart R, and verify that make can be found, which should show the path to your Rtools installation.
-	Sys.which("make")
-	## should show the following: "C:\\rtools40\\usr\\bin\\make.exe"
 
-# Step 2: Install the required packages, first set:
-	install.packages("mclust")
-	install.packages("vegan")
-	install.packages("MESS")
-	install.packages("multcomp")
-	install.packages("KernSmooth")
-	install.packages("mvtnorm")
-	install.packages("lattice")
-	install.packages("survival")
-	install.packages("TH.data")
-	source("https://bioconductor.org/biocLite.R")
-	biocLite("flowCore")
-	source("https://bioconductor.org/biocLite.R")
-	biocLite("flowViz")
+# Run the code below to install packages
+	#citation https://github.com/hally166/Cytometry-R-scripts/blob/master/Startingscript.R
 
-# Step 3: Install second set of required packages:
-	 packages = c("Biobase",
-	 			"BiocGenerics",
-	 			"flowViz",
-	 			"flowFP",
-	 			"graphics",
-	 			"grDevices",
-	 			"methods",
-	 			"stats",
-	 			"stats4",
-	 			"MASS",
-	 			"multcomp",
-	 			"devtools")
+	# Installing the "basic" flow cytometry packages. They all live on a repository called Bioconductor.
+	install.packages("BiocManager")
 
-	 ## Now load or install&load all
-		package.check <- lapply(
-		  packages,
-		  FUN = function(x) {
-		    if (!require(x, character.only = TRUE)) {
-		      install.packages(x, dependencies = TRUE)
-		      library(x, character.only = TRUE)
-		    }
-		  }
-		)
+	#You can either do library(BiocManager) and install("flowCore) or what I have done below.
+	BiocManager::install("flowCore") #interpret .fcs files
+	BiocManager::install("flowViz") #basic visualization
+	BiocManager::install("ggcyto") #advanced visualization using the ggPlot nomenclature
+	BiocManager::install("openCyto") #Used to link various analysis methodologies
+	BiocManager::install("flowWorkspace") #used to build analysis templates
+	BiocManager::install("CytoML") #imports FlowJo and DiVA workspaces
 
-# Step 4: Install flowCore package
-	#source of code below: (http://bioconductor.org/packages/release/bioc/html/flowCore.html)
-		if (!requireNamespace("BiocManager", quietly = TRUE))
-		    install.packages("BiocManager")
-		BiocManager::install("flowCore")
+	#These packages largely require each other to work (except flowCore which is the "base package) 
+	#so will often load each other without my help.  For simplicity I have loaded them all.
 
-# Step 5: Install flowFDAE
-	# Then install flowFDAE using the install_github function in the devtools package. (With build_vignettes=TRUE, the vignettes will be built and installed.) You first need to install the flowFDADataExample package for this purpose
+	#You will need to "clean" your data.  flowAI and flowCut are my recommendations.  
+	#flowClean is the original, but is succeeded by flowCut
+	BiocManager::install("flowAI")
 
+	if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+	BiocManager::install("flowAI") # install failed, so doing it manually
+	
+	BiocManager::install("flowClean")
+
+	#flowCut is not available on bioconductor and needs to be loaded straight from GitHub. To do this you need the package devtools.
+	install.packages("devtools")
+	devtools::install_github("jmeskas/flowCut")
+
+	#An interesting project is CytoExploreR that tries to blend the power of R with the ease of use of a mouse.
+	devtools::install_github("DillonHammill/CytoExploreRData")
+	devtools::install_github("DillonHammill/CytoExploreR",build_vignettes = TRUE)
+
+
+# Load data
+	# Load a single fcs file
+		myfile <- "C:/Users/Andrew/Desktop/Jade_IDR_Biofilter/A01 20210815_01_SYBR.FCS"
+		fcsfile <- flowCore::read.FCS(myfile)
+		library(flowCore)
+		fcsfile1 <- read.FCS(myfile)
+		fcsfile
+
+	# Load many fcs files into a flow set
+		setwd("C:/Users/Andrew/Desktop/Jade_IDR_Biofilter")
+		myfiles <- list.files(pattern = "\\.fcs$") # load all files in this folder that are .fcs file type
+		fs <- flowCore::read.flowSet(myfiles, path="C:/Users/Andrew/Desktop/Jade_IDR_Biofilter/")
+		fs
+		fs[[1]]
+
+# Clean and visualize data
+	# Citation for basic code to follow, most notes added are my own: https://github.com/hally166/Cytometry-R-scripts/blob/master/compensate_transform_clean.R
+	# Citation for video tutorial: https://www.youtube.com/watch?v=WWa7dwwiLvI
+	
+	#Load the packages
+		library(BiocManager)
+		library(flowViz)
+		library(openCyto)
 		library(devtools)
-		install_github("lievenclement/flowFDAExampleData")
-		install_github("lievenclement/flowFDA", build_vignettes=TRUE)
+		library(flowWorkspace)
+		library(CytoML)
+		library(flowCore)
+		library(flowAI)
+		library(ggcyto)
 
-# For help, see document:
-		vignette("flowFDAExampleData")
+		#How to get help
+		??flowCore
 
-		# The example dataset can be loaded using the data function. The fset data object is a flowCore flowSet object with the raw flow cytometric data of the experiment (Ellis et al., 2013).
-			library(flowFDAExampleData)
-			data(fset)
-			fset
+		#Load a single file
+		myfile <- "C:/Users/Andrew/Desktop/Jade_IDR_Biofilter/A01 20210815_01_SYBR.FCS"
+		fcsfile <- read.FCS(myfile)
+		fcsfile
+		names(fcsfile) # list of parameters
+		exprs(fcsfile) # Object of class matrix containing the measured intensities. Rows correspond to cells, columns to the different measurement channels
+		each_col(fcsfile, median) # show the median of each column
+		keyword(fcsfile) # show the metadata for the file
 
-		# The following commands were used to create the fset data included with this package.
-			library(flowFDA)
-			fset<-read.flowSet(path="~/Dropbox/LabMet/flowcytometry/stress_test_2/",
-			transformation=FALSE)
-			fset
-			##subset feet to reduce memory footprint
-			param=c("SS Log","FL 1 Log","FL 3 Log")
-			fset=fset[,param]
-			fset
+		#Compensation
+		spillover(fcsfile) # use this to see which keyword to use
+		fcsfile_comp <-compensate(fcsfile, spillover(fcsfile)$'$SPILLOVER') # this was changed, from SPILL to '$SPILLOVER' keyword. . . this was tricky, watched the video many times to figure this change out
+		fcsfile_comp
 
+		#Cleaning
+		fcsfile_comp_clean <- flow_auto_qc(fcsfile_comp) # will remove "bad events"
+		fcsfile_comp_clean
+		keyword(fcsfile_comp_clean) <- keyword(fcsfile)
+		fcsfile_comp_clean
+		??flowAI
 
-		# We will use the channels SS Log, FL 1 Log and FL 3 Log, which correspond to the side scatter, SYBR green and Propidium Iodide staining bandpass filters. The data have been transformed to fall within a range of 0 and 1 and extremely low intensities are removed using a rectangular gate so as to avoid artefacts. The flowcytometer used in this study returned log transformed intensities and had a maximum log transformed intensity of 2^16.
-.
-			mytrans<-function(x) x/2^16
-			fset<-transform("FL 1 Log"=mytrans,"FL 3 Log"=mytrans,"SS Log"=mytrans)%on%fset
-			rg <- rectangleGate(filterId="myRectGate", list("SS Log"=c(1/2^17, Inf), "FL 1 Log"=c(1/2^17, Inf),"FL 3 Log"=c(1/2^17,Inf)))
-			fset<-Subset(fset,rg)
+		#Transformation
+		trans <- estimateLogicle(fcsfile_comp_clean, colnames(fcsfile_comp_clean[,3:10]))
+		fcsfile_comp_clean_trans <- transform(fcsfile_comp_clean, trans)
 
+		#Visualize the results
+		??ggcyto
+		autoplot(fcsfile_comp_clean)
+		autoplot(fcsfile_comp_clean_trans)
+		autoplot(fcsfile_comp_clean_trans, x="FITC-A", y="PE-A")
+		
 
-		# A good choice of the filename can enable an automated construction of the grouping variable
-			#construct experiment factor
-				files<-list.files(path="~/Dropbox/LabMet/flowcytometry/stress_test_2/",pattern=".fcs")
-				expHlp<-unlist(strsplit(files,split="_replicate"))
-				dim(expHlp)<-c(2,length(fset))
-				group<-as.factor(expHlp[1,])
-				nGroup<-nlevels(group)
+# Stopped here, below is unfinished
 
+		#In a flowSet
+		myfiles <- list.files(path="C:/Users/chall/Downloads/FlowRepository_FR-FCM-ZZZU_files", pattern=".FCS$")
+		fs <- flowCore::read.flowSet(myfiles, path="C:/Users/chall/Downloads/FlowRepository_FR-FCM-ZZZU_files/")
+		fs
+		fs[[1]]
+		spillover(fs[[1]])
+		fs_comp <-compensate(fs, spillover(fs[[1]])$SPILL)
+		fs_comp_clean <- flow_auto_qc(fs_comp)
+		trans <- estimateLogicle(fs_comp_clean[[1]], colnames(fs_comp_clean[[1]][,3:10]))
+		fs_comp_clean_trans <- transform(fs_comp_clean, trans)
 
-
-# Begin here at normal session start, once entire installation above is done:
-
-	packages_to_load <- c("mclust",
-						"vegan",
-						"MESS",
-						"multcomp",
-						"KernSmooth",
-						"mvtnorm",
-						"lattice",
-						"survival",
-						"TH.data",
-						"flowCore",
-						"flowViz",
-						"Biobase",
-						"BiocGenerics",
-						"flowFP",
-	 					"graphics",
-	 					"grDevices",
-	 					"methods",
-	 					"stats",
-	 					"stats4",
-	 					"MASS",
-	 					"devtools"
-						)
-	## Now load or install&load all
-		package.check <- lapply(
-		  packages_to_load,
-		  FUN = function(x) {
-		    if (!require(x, character.only = TRUE)) {
-		      install.packages(x, dependencies = TRUE)
-		      library(x, character.only = TRUE)
-		    }
-		  }
-		)
-
-# Test out with "IDR_Biofilter_backwash_try1.csv"
+		#fsApply
+		??fsApply
+		fsApply(fs,each_col,median)
