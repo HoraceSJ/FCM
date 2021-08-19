@@ -1,6 +1,6 @@
 # Flow Cytometry (FCM) Code
 # Andrew Black
-# Last updated 08-18-2021
+# Started 08-18-2021
 
 
 # Watch this YouTube video to see what we are about to do:
@@ -106,6 +106,8 @@
 		autoplot(fcsfile_comp_clean)
 		autoplot(fcsfile_comp_clean_trans)
 		autoplot(fcsfile_comp_clean_trans, x="FITC-A", y="PE-A")
+
+		# What does this mean? start here: http://flowcytometry.berkeley.edu/pdfs/Basic%20Flow%20Cytometry.pdf
 		
 
 # Stopped here, below is unfinished
